@@ -18,13 +18,10 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="glad.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="Source.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Shader.cpp">
+    <ClCompile Include="glad\src\glad.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -35,12 +32,27 @@
     <ClInclude Include="stb_image.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Camera.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="shaders\fragmentShader.fs">
       <Filter>shaders</Filter>
     </None>
     <None Include="shaders\vertexShader.vs">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="shaders\LightingFS.fs">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="shaders\LightingVS.vs">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="shaders\LampFS.fs">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="shaders\LampVS.vs">
       <Filter>shaders</Filter>
     </None>
   </ItemGroup>

@@ -19,16 +19,20 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="glad.c" />
-    <ClCompile Include="Shader.cpp" />
+    <ClCompile Include="glad\src\glad.c" />
     <ClCompile Include="Source.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Camera.h" />
     <ClInclude Include="Shader.h" />
     <ClInclude Include="stb_image.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="shaders\fragmentShader.fs" />
+    <None Include="shaders\LampFS.fs" />
+    <None Include="shaders\LampVS.vs" />
+    <None Include="shaders\LightingFS.fs" />
+    <None Include="shaders\LightingVS.vs" />
     <None Include="shaders\vertexShader.vs" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
@@ -88,7 +92,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>E:\Development\glad\include;$(GLFW_PATH)include;$(GLM_PATH);$(GLEW_PATH)Include;$(VC_IncludePath);$(WindowsSDK_IncludePath);</IncludePath>
+    <IncludePath>glad\include;$(GLFW_PATH)include;$(GLM_PATH);$(GLEW_PATH)Include;$(VC_IncludePath);$(WindowsSDK_IncludePath);</IncludePath>
     <LibraryPath>$(GLFW_PATH)lib-vc2015\;$(GLEW_PATH)lib\Release\x64\;$(VC_LibraryPath_x64);$(WindowsSDK_LibraryPath_x64);$(NETFXKitsDir)Lib\um\x64</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
