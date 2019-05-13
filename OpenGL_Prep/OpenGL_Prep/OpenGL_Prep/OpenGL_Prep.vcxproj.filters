@@ -32,12 +32,15 @@
     <ClInclude Include="Shader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="stb_image.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\shaders\fragmentShader.fs">
+    <None Include="shaders\fragmentShader.fs">
       <Filter>shaders</Filter>
     </None>
-    <None Include="..\shaders\vertexShader.vs">
+    <None Include="shaders\vertexShader.vs">
       <Filter>shaders</Filter>
     </None>
   </ItemGroup>

@@ -25,10 +25,11 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Shader.h" />
+    <ClInclude Include="stb_image.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\shaders\fragmentShader.fs" />
-    <None Include="..\shaders\vertexShader.vs" />
+    <None Include="shaders\fragmentShader.fs" />
+    <None Include="shaders\vertexShader.vs" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{B4F860D5-5955-4463-B5FE-6F352210B15F}</ProjectGuid>
