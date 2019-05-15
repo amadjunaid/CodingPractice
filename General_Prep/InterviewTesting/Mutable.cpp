@@ -1,30 +1,71 @@
 #include <iostream>
 #include <memory>
+#include <vector>
+#include <string>
+
 using std::cout;
-
-class A {
+using std::string;
+class Mammal
+{
+protected:
+	 string name_;
+	 mutable int size;
 public:
-	A() { cout << "create A\n";; }
-	virtual ~A() { cout << "destroy A\n"; }
+	Mammal()
+	{
+		name_ = "nameless";
+	}
+	Mammal(const string& name)
+	{
+		name_ = name;
+	}
 
+	void eat()
+	{
+		cout << "This Mammal " << name_ << " is eating" << std::endl;
+	}
+
+	void foo() const
+	{
+		size = 10;
+	}
 };
 
-class B : public A 
+class Tiger : public virtual Mammal
 {
 public:
-	B() { cout << "create B\n";; }
-	~B() { cout << "destroy B\n"; }
+	void groom()
+	{
+		cout << "This Mammal " << name_ << " is T_groomed" << std::endl;
+	}
 };
+
+
+void F(int A[], int B[], int n)
+{
+	for (int i = 0; i<n;i++)
+	{
+		auto res = [](int A[],int n, int i)->int {
+			int result = 1;
+			for (int j = 0; j < n; j++)
+			{
+				if (i != j)
+					result *= A[j];
+			}
+			return result;
+		};
+
+		B[i] = res(A,n,i);
+		
+	}
+
+}
 
 int main()
 {
-	A *a = new A();
-	delete a;
+	int A[] = { 2, 1 , 5 , 9 };
+	int B[] = { 0,0,0,0 };
 
-	A *a_2 = new B();
-	delete a_2;
-
-	std::shared_ptr<A> u_a = std::shared_ptr<A>();
-
-	std::shared_ptr<A> u_b = u_a;
+	F(A, B, 4);
+	   
 }
