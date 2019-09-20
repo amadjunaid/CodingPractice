@@ -3,6 +3,7 @@
 
 #include <glad/glad.h>
 #include <GLFW\glfw3.h>
+#include "stb_image.h"
 
 #include "Shader.h"
 #define WINDOW_HEIGHT 800
@@ -60,6 +61,10 @@ int main()
 	0, 1, 3,   // first triangle
 	1, 2, 3    // second triangle
 	};
+
+	//Load Image
+	int width, height, nrChannels;
+	unsigned char *data = stbi_load("container.jpg", &width, &height, &nrChannels, 0);
 
 	//Create a Vertex Attribute Array so it can easily be bound for defined Vertex attributes	
 	unsigned int VAO;
