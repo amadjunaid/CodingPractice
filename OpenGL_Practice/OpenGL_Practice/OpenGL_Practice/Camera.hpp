@@ -9,7 +9,7 @@ class Camera
 {
 public:
 	Camera():
-    m_pos(glm::vec3(0.f, 1.f, 5.f)),
+    m_pos(glm::vec3(0.f, 0.f, 5.f)),
     m_front(  glm::vec3(0.f, -1.f, -1.f)),
     m_up( glm::vec3(0.f, 1.f, 0.f)),
     m_fov ( 45.f),
