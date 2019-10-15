@@ -130,8 +130,9 @@
   <ItemGroup>
     <ClCompile Include="glad.c" />
     <ClCompile Include="GLM_Test.cpp" />
-    <ClCompile Include="Main.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+    <ClCompile Include="Main_WithLighting.cpp" />
+    <ClCompile Include="Main_WithCamera.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="Main_OhneShaderClass.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
@@ -143,8 +144,13 @@
   <ItemGroup>
     <None Include="shaders\Basic.fs" />
     <None Include="shaders\Basic.vs" />
+    <None Include="shaders\LampShader.fs" />
+    <None Include="shaders\LampShader.vs" />
+    <None Include="shaders\LightingShader.fs" />
+    <None Include="shaders\LightingShader.vs" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Camera.hpp" />
     <ClInclude Include="Shader.h" />
     <ClInclude Include="stb_image.h" />
   </ItemGroup>
