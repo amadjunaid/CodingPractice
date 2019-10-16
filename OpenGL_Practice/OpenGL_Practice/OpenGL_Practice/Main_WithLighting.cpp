@@ -35,7 +35,7 @@ float mouseLastX = float(WINDOW_WIDTH) / 2.f, mouseLastY = float(WINDOW_HEIGHT) 
 bool firstMouse = true;
 
 //Light Settings
-glm::vec3 lightPos(1.5f, 1.f, 0.5f);
+glm::vec3 lightPos(0.f, 1.f, 2.f);
 
 
 int main()
@@ -269,6 +269,7 @@ int main()
         lightingShader.setVec3("objectColor", 1.0f, 0.5f, 0.31f);
         lightingShader.setVec3("lightColor", 1.0f, 1.0f, 1.0f);
 		lightingShader.setVec3("lightPos", lightPos);
+		lightingShader.setVec3("viewPos", g_camera.m_pos);
         glBindVertexArray(VAO);
 
         //glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
