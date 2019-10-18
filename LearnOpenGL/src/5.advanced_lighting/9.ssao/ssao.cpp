@@ -24,6 +24,8 @@ void renderCube();
 // settings
 const unsigned int SCR_WIDTH = 1280;
 const unsigned int SCR_HEIGHT = 720;
+const float clip_near = 0.1f;
+const float clip_far = 50.f;
 
 // camera
 Camera camera(glm::vec3(2.0f, 3.0f, 5.0f));
@@ -37,12 +39,15 @@ float lastFrame = 0.0f;
 
 //SSAO control
 bool g_useSSAO = true;
+bool g_useLogDepth = false;
 float g_ssaoRadius = 0.5f;
 enum SHOWPASS
 {
+    DEPTH = 0,
     FINALCOLOR = 1,
     SSAO = 2,
-    SSAOBLUR = 3
+    SSAOBLUR = 3,
+    REPOSITION = 4
 };
 uint32_t g_showPass = SHOWPASS::FINALCOLOR;
 
@@ -113,7 +118,7 @@ int main()
     unsigned int gBuffer;
     glGenFramebuffers(1, &gBuffer);
     glBindFramebuffer(GL_FRAMEBUFFER, gBuffer);
-    unsigned int gPosition, gNormal, gAlbedo;
+    unsigned int gPosition, gNormal, gAlbedo, gDepth;
     // position color buffer
     glGenTextures(1, &gPosition);
     glBindTexture(GL_TEXTURE_2D, gPosition);
@@ -137,15 +142,24 @@ int main()
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, gAlbedo, 0);
+    // depth buffer texture
+    glGenTextures(1, &gDepth);
+    glBindTexture(GL_TEXTURE_2D, gDepth);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, SCR_WIDTH, SCR_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, gDepth, 0);
     // tell OpenGL which color attachments we'll use (of this framebuffer) for rendering 
     unsigned int attachments[3] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2 };
     glDrawBuffers(3, attachments);
     // create and attach depth buffer (renderbuffer)
-    unsigned int rboDepth;
+    /*unsigned int rboDepth;
     glGenRenderbuffers(1, &rboDepth);
     glBindRenderbuffer(GL_RENDERBUFFER, rboDepth);
     glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, SCR_WIDTH, SCR_HEIGHT);
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rboDepth);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rboDepth);*/
     // finally check if framebuffer is complete
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
         std::cout << "Framebuffer not complete!" << std::endl;
@@ -156,7 +170,7 @@ int main()
     unsigned int ssaoFBO, ssaoBlurFBO;
     glGenFramebuffers(1, &ssaoFBO);  glGenFramebuffers(1, &ssaoBlurFBO);
     glBindFramebuffer(GL_FRAMEBUFFER, ssaoFBO);
-    unsigned int ssaoColorBuffer, ssaoColorBufferBlur;
+    unsigned int ssaoColorBuffer, ssaoColorBufferBlur, ssaoRePosition;
     // SSAO color buffer
     glGenTextures(1, &ssaoColorBuffer);
     glBindTexture(GL_TEXTURE_2D, ssaoColorBuffer);
@@ -164,8 +178,20 @@ int main()
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, ssaoColorBuffer, 0);
+    // Reconstructed position color buffer
+    glGenTextures(1, &ssaoRePosition);
+    glBindTexture(GL_TEXTURE_2D, ssaoRePosition);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, SCR_WIDTH, SCR_HEIGHT, 0, GL_RGB, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, ssaoRePosition, 0);
+    unsigned int ssaoFBOAttachments[2] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
+    glDrawBuffers(2, ssaoFBOAttachments);
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
         std::cout << "SSAO Framebuffer not complete!" << std::endl;
+
     // and blur stage
     glBindFramebuffer(GL_FRAMEBUFFER, ssaoBlurFBO);
     glGenTextures(1, &ssaoColorBufferBlur);
@@ -247,6 +273,8 @@ int main()
     shaderSSAO.setInt("gPosition", 0);
     shaderSSAO.setInt("gNormal", 1);
     shaderSSAO.setInt("texNoise", 2);
+    shaderSSAO.setInt("gDepth", 3);
+
     shaderSSAOBlur.use();
     shaderSSAOBlur.setInt("ssaoInput", 0);
 
@@ -254,6 +282,8 @@ int main()
     shaderFinalRender.setInt("rColor", 0);
     shaderFinalRender.setInt("ssaoColorBuffer", 1);
     shaderFinalRender.setInt("ssaoColorBufferBlur", 2);
+    shaderFinalRender.setInt("gDepth", 3);
+    shaderFinalRender.setInt("rePosition", 4);
     // render loop
     // -----------
     while (!glfwWindowShouldClose(window))
@@ -277,7 +307,9 @@ int main()
         // -----------------------------------------------------------------
         glBindFramebuffer(GL_FRAMEBUFFER, gBuffer);
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-            glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 50.0f);
+            float aspectRatio = (float)SCR_WIDTH / (float)SCR_HEIGHT;
+            float FOV = glm::radians(camera.Zoom);
+            glm::mat4 projection = glm::perspective(FOV, aspectRatio, clip_near, clip_far);
             glm::mat4 view = camera.GetViewMatrix();
             glm::mat4 model = glm::mat4(1.0f);
             shaderGeometryPass.use();
@@ -311,12 +343,19 @@ int main()
                 shaderSSAO.setVec3("samples[" + std::to_string(i) + "]", ssaoKernel[i]);
             shaderSSAO.setMat4("projection", projection);
             shaderSSAO.setFloat("ssaoRadius", g_ssaoRadius);
+            shaderSSAO.setBool("useLogDepth", g_useLogDepth);
+            shaderSSAO.setFloat("aspectRatio", aspectRatio);
+            shaderSSAO.setFloat("tanHalfFOV", glm::tan(FOV / 2.f));
+            shaderSSAO.setFloat("near", clip_near);
+            shaderSSAO.setFloat("far", clip_far);
             glActiveTexture(GL_TEXTURE0);
             glBindTexture(GL_TEXTURE_2D, gPosition);
             glActiveTexture(GL_TEXTURE1);
             glBindTexture(GL_TEXTURE_2D, gNormal);
             glActiveTexture(GL_TEXTURE2);
             glBindTexture(GL_TEXTURE_2D, noiseTexture);
+            glActiveTexture(GL_TEXTURE3);
+            glBindTexture(GL_TEXTURE_2D, gDepth);
             renderQuad();
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
@@ -347,7 +386,7 @@ int main()
             const float quadratic = 0.032;
             shaderLightingPass.setFloat("light.Linear", linear);
             shaderLightingPass.setFloat("light.Quadratic", quadratic);
-            shaderLightingPass.setBool("useSSAO", g_useSSAO);
+            shaderLightingPass.setBool("useSSAO", g_useSSAO);         
             glActiveTexture(GL_TEXTURE0);
             glBindTexture(GL_TEXTURE_2D, gPosition);
             glActiveTexture(GL_TEXTURE1);
@@ -364,12 +403,18 @@ int main()
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         shaderFinalRender.use();
         shaderFinalRender.setInt("showPass",int(g_showPass));
+        shaderFinalRender.setFloat("near", clip_near);
+        shaderFinalRender.setFloat("far", clip_far);
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, rColor);
         glActiveTexture(GL_TEXTURE1);
         glBindTexture(GL_TEXTURE_2D, ssaoColorBuffer);
         glActiveTexture(GL_TEXTURE2);
-        glBindTexture(GL_TEXTURE_2D, ssaoColorBufferBlur);
+        glBindTexture(GL_TEXTURE_2D, ssaoColorBufferBlur);        
+        glActiveTexture(GL_TEXTURE3);
+        glBindTexture(GL_TEXTURE_2D, gDepth);        
+        glActiveTexture(GL_TEXTURE4);
+        glBindTexture(GL_TEXTURE_2D, ssaoRePosition);
         renderQuad();
 
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
@@ -516,6 +561,10 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 {
     if (key == GLFW_KEY_T && action == GLFW_RELEASE)
         g_useSSAO = !g_useSSAO;
+    
+    if (key == GLFW_KEY_I && action == GLFW_RELEASE)
+        g_useLogDepth = !g_useLogDepth;
+
     if (key == GLFW_KEY_1 && action == GLFW_RELEASE)
     {
         std::cout << "Pass: Final Color" << std::endl;
@@ -530,6 +579,16 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
     {
         std::cout << "Pass: SSAO with Blur" << std::endl;
         g_showPass = SHOWPASS::SSAOBLUR;
+    }
+    if (key == GLFW_KEY_0 && action == GLFW_RELEASE)
+    {
+        std::cout << "Pass: Depth" << std::endl;
+        g_showPass = SHOWPASS::DEPTH;
+    }
+    if (key == GLFW_KEY_4 && action == GLFW_RELEASE)
+    {
+        std::cout << "Pass: Reposition" << std::endl;
+        g_showPass = SHOWPASS::REPOSITION;
     }
 }
 
