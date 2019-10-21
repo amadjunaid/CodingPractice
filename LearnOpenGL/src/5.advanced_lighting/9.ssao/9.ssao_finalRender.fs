@@ -8,11 +8,14 @@ uniform sampler2D ssaoColorBuffer;
 uniform sampler2D ssaoColorBufferBlur;
 uniform sampler2D gDepth;
 uniform sampler2D rePosition;
+uniform sampler2D gPosition;
 
 uniform int showPass; //1, 2, 3 (Final color, ssao, ssao with blur)
 
 uniform float near; 
 uniform float far;
+uniform mat4 projection;
+uniform mat4 projectionInverse;
 
 float GetViewZ(vec2 coords)
 {
@@ -47,9 +50,24 @@ void main()
 		float depth = GetViewZ(TexCoords) / far;
 		color = vec3(depth);		
 	}
-	else if (showPass == 4)
+	else if (showPass == 9)
 	{
-		color = texture(rePosition, TexCoords).rgb;		
+		vec3 viewPosition = texture(gPosition, TexCoords).rgb;
+		float depth =  viewPosition.z;
+		color = vec3(depth);		
+	}
+	else if (showPass == 4)
+	{		
+		float z = texture(gDepth, TexCoords).r*2.f -1.f;
+		float x = TexCoords.x * 2.f - 1.f;
+		float y = TexCoords.y * 2.f - 1.f;
+		vec4 projectedPos = vec4(x, y ,z, 1.f);
+		vec4 PositionVS = projectionInverse * projectedPos;
+		color = vec3(PositionVS / PositionVS.w);
+	}
+	else if (showPass == 5)
+	{
+		color = texture(gPosition, TexCoords).rgb;		
 	}
 
     FragColor = vec4(color, 1.0);

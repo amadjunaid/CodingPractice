@@ -43,11 +43,13 @@ bool g_useLogDepth = false;
 float g_ssaoRadius = 0.5f;
 enum SHOWPASS
 {
-    DEPTH = 0,
+    REDEPTH = 0,
+    DEPTH = 9,
     FINALCOLOR = 1,
     SSAO = 2,
     SSAOBLUR = 3,
-    REPOSITION = 4
+    REPOSITION = 4,
+    POSITION = 5
 };
 uint32_t g_showPass = SHOWPASS::FINALCOLOR;
 
@@ -284,6 +286,7 @@ int main()
     shaderFinalRender.setInt("ssaoColorBufferBlur", 2);
     shaderFinalRender.setInt("gDepth", 3);
     shaderFinalRender.setInt("rePosition", 4);
+    shaderFinalRender.setInt("gPosition", 5);
     // render loop
     // -----------
     while (!glfwWindowShouldClose(window))
@@ -307,9 +310,9 @@ int main()
         // -----------------------------------------------------------------
         glBindFramebuffer(GL_FRAMEBUFFER, gBuffer);
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-            float aspectRatio = (float)SCR_WIDTH / (float)SCR_HEIGHT;
-            float FOV = glm::radians(camera.Zoom);
-            glm::mat4 projection = glm::perspective(FOV, aspectRatio, clip_near, clip_far);
+            float aspectRatio = (float)SCR_WIDTH / (float)SCR_HEIGHT;            
+            glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), aspectRatio, clip_near, clip_far);
+			glm::mat4 projectionInverse = glm::inverse(projection);
             glm::mat4 view = camera.GetViewMatrix();
             glm::mat4 model = glm::mat4(1.0f);
             shaderGeometryPass.use();
@@ -342,10 +345,11 @@ int main()
             for (unsigned int i = 0; i < 64; ++i)
                 shaderSSAO.setVec3("samples[" + std::to_string(i) + "]", ssaoKernel[i]);
             shaderSSAO.setMat4("projection", projection);
+			shaderSSAO.setMat4("projectionInverse", projectionInverse);
             shaderSSAO.setFloat("ssaoRadius", g_ssaoRadius);
             shaderSSAO.setBool("useLogDepth", g_useLogDepth);
             shaderSSAO.setFloat("aspectRatio", aspectRatio);
-            shaderSSAO.setFloat("tanHalfFOV", glm::tan(FOV / 2.f));
+            shaderSSAO.setFloat("tanHalfFOV", glm::tan(glm::radians(camera.Zoom / 2.f)));
             shaderSSAO.setFloat("near", clip_near);
             shaderSSAO.setFloat("far", clip_far);
             glActiveTexture(GL_TEXTURE0);
@@ -405,6 +409,10 @@ int main()
         shaderFinalRender.setInt("showPass",int(g_showPass));
         shaderFinalRender.setFloat("near", clip_near);
         shaderFinalRender.setFloat("far", clip_far);
+		shaderFinalRender.setFloat("aspectRatio", aspectRatio);
+		shaderFinalRender.setFloat("tanHalfFOV", glm::tan(glm::radians(camera.Zoom / 2.f)));
+        shaderFinalRender.setMat4("projection", projection);
+		shaderFinalRender.setMat4("projectionInverse", projectionInverse);
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, rColor);
         glActiveTexture(GL_TEXTURE1);
@@ -415,6 +423,8 @@ int main()
         glBindTexture(GL_TEXTURE_2D, gDepth);        
         glActiveTexture(GL_TEXTURE4);
         glBindTexture(GL_TEXTURE_2D, ssaoRePosition);
+        glActiveTexture(GL_TEXTURE5);
+        glBindTexture(GL_TEXTURE_2D, gPosition);
         renderQuad();
 
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
@@ -582,13 +592,23 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
     }
     if (key == GLFW_KEY_0 && action == GLFW_RELEASE)
     {
-        std::cout << "Pass: Depth" << std::endl;
-        g_showPass = SHOWPASS::DEPTH;
+        std::cout << "Pass: ReDepth" << std::endl;
+        g_showPass = SHOWPASS::REDEPTH;
     }
     if (key == GLFW_KEY_4 && action == GLFW_RELEASE)
     {
         std::cout << "Pass: Reposition" << std::endl;
         g_showPass = SHOWPASS::REPOSITION;
+    }
+    if (key == GLFW_KEY_5 && action == GLFW_RELEASE)
+    {
+        std::cout << "Pass: Position" << std::endl;
+        g_showPass = SHOWPASS::POSITION;
+    }
+    if (key == GLFW_KEY_9 && action == GLFW_RELEASE)
+    {
+        std::cout << "Pass: Depth" << std::endl;
+        g_showPass = SHOWPASS::DEPTH;
     }
 }
 

@@ -24,12 +24,24 @@ float bias = 0.025;
 const vec2 noiseScale = vec2(1280.0/4.0, 720.0/4.0); 
 
 uniform mat4 projection;
+uniform mat4 projectionInverse;
 //TODO: Calculate proper Sample Depth.. also from reconstruction as in http://ogldev.atspace.co.uk/www/tutorial46/tutorial46.html
 float GetViewZ(vec2 coords)
 {
 	float z = texture(gDepth, coords).r;
     z = z * 2.0 - 1.0; // back to NDC 
-    return (2.0 * near * far) / (far + near - z * (far - near));	
+    return (2.0 * near * far) / (far + near - z * ( far - near));	
+	//return (projection[3][2] / ( z - projection[2][2]));
+}
+
+vec3 ReconstructPosition(float z_view)
+{		
+		float z = z_view*2.f -1.f;
+		float x = TexCoords.x * 2.f - 1.f;
+		float y = TexCoords.y * 2.f - 1.f;
+		vec4 projectedPos = vec4(x, y ,z, 1.f);
+		vec4 PositionVS = projectionInverse * projectedPos;
+		return vec3(PositionVS / PositionVS.w);
 }
 
 void main()
@@ -44,7 +56,7 @@ void main()
 
 	//Use Reconstructed Position
 	if(useLogDepth){			
-		fragPos = vec3(x_view, y_view, z_view);
+		fragPos = ReconstructPosition(texture(gDepth, TexCoords).r);		
 	}
 
     vec3 normal = normalize(texture(gNormal, TexCoords).rgb);
@@ -69,8 +81,9 @@ void main()
         
         // get sample depth
         float sampleDepth = texture(gPosition, offset.xy).z; // get depth value of kernel sample
-		if(useLogDepth){			
-			sampleDepth = GetViewZ(offset.xy);
+		if(useLogDepth){	
+			sampleDepth = ReconstructPosition(texture(gDepth, offset.xy).r).z;
+			//sampleDepth = GetViewZ(offset.xy);
 		}
         
         // range check & accumulate
