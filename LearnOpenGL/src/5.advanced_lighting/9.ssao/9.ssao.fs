@@ -13,10 +13,14 @@ uniform sampler2D gDepth;
 uniform vec3 samples[64];
 
 // parameters (you'd probably want to use them as uniforms to more easily tweak the effect)
-int kernelSize = 16;
+int kernelSize = 64;
 uniform float ssaoRadius;
-uniform bool useLogDepth;
+uniform float ssao_DR_falloff;
+uniform float ssao_DR_area;
+uniform bool useDepthReconstruction;
 uniform bool usePureDepth;
+uniform bool useNormalReconstruction;
+uniform bool useGBufferDepth;
 uniform float near; 
 uniform float far;
 float bias = 0.025;
@@ -42,32 +46,56 @@ float GetLogZ(vec2 coords)
 
 vec3 ReconstructPosition(float z_view)
 {		
-		float z = z_view*2.f -1.f;
-		float x = TexCoords.x * 2.f - 1.f;
-		float y = TexCoords.y * 2.f - 1.f;
-		vec4 projectedPos = vec4(x, y ,z, 1.f);
-		vec4 PositionVS = projectionInverse * projectedPos;
-		return vec3(PositionVS / PositionVS.w);
+	float z = z_view*2.f -1.f;
+	float x = TexCoords.x * 2.f - 1.f;
+	float y = TexCoords.y * 2.f - 1.f;
+	vec4 projectedPos = vec4(x, y ,z, 1.f);
+	vec4 PositionVS = projectionInverse * projectedPos;
+	return vec3(PositionVS / PositionVS.w);
 }
+
+
+vec3 normal_from_depth(float depth, vec2 texcoords) {
+  
+	vec2 offset1 = vec2(0.0,0.001);
+	vec2 offset2 = vec2(0.001,0.0);
+  
+	float depth1 = texture(gDepth, texcoords + offset1).r;
+	float depth2 = texture(gDepth, texcoords + offset2).r;
+  
+	vec3 p1 = vec3(offset1, depth1 - depth);
+	vec3 p2 = vec3(offset2, depth2 - depth);
+  
+	vec3 normal = cross(p1, p2);
+	normal.z = -normal.z;
+  
+	return normalize(normal);
+}
+
 
 void main()
 {
     // get input for SSAO algorithm
-    vec3 fragPos = texture(gPosition, TexCoords).xyz;
-
-	//Reconstruct Position
-	float z_view = GetViewZ(TexCoords);
-	float x_view = z_view * ViewRay.x;
-	float y_view = z_view * ViewRay.y;
-
-	float z_log = GetLogZ(TexCoords);
-	//Use Reconstructed Position
-	if(useLogDepth){
+    vec3 fragPos = vec3(0.f);
+	
+	if(useGBufferDepth || usePureDepth)
+		fragPos = texture(gPosition, TexCoords).xyz;
+	else if(useDepthReconstruction){
 		
 		fragPos = ReconstructPosition(texture(gDepth, TexCoords).r);		
-	}
+	}	
 
-    vec3 normal = normalize(texture(gNormal, TexCoords).rgb);
+	float depth_log = GetLogZ(TexCoords);
+		
+	vec3 normal = vec3(1.f);
+	
+	normal = normalize(texture(gNormal, TexCoords).rgb);
+	
+	if(usePureDepth && useNormalReconstruction)
+	{
+		normal = normal_from_depth(depth_log, TexCoords);	
+	}
+	
     vec3 randomVec = normalize(texture(texNoise, TexCoords * noiseScale).xyz);
     // create TBN change-of-basis matrix: from tangent-space to view-space
     vec3 tangent = normalize(randomVec - normal * dot(randomVec, normal));
@@ -88,38 +116,40 @@ void main()
         offset.xyz = offset.xyz * 0.5 + 0.5; // transform to range 0.0 - 1.0
         
         // get sample depth
-        float sampleDepth = texture(gPosition, offset.xy).z; // get depth value of kernel sample
-		if(useLogDepth){	
-			sampleDepth = ReconstructPosition(texture(gDepth, offset.xy).r).z;
-			//sampleDepth = GetViewZ(offset.xy);
-			//sampleDepth = GetLogZ(offset.xy);
+		float depth_sample = 0.f;
+		if(useGBufferDepth){
+			depth_sample = texture(gPosition, offset.xy).z; // get depth value of kernel sample
 		}
-        
+		if(useDepthReconstruction){	
+			depth_sample = ReconstructPosition(texture(gDepth, offset.xy).r).z;
+			//depth_sample = GetViewZ(offset.xy);
+			//depth_sample = GetLogZ(offset.xy);
+		}        
 		else if(usePureDepth){	
 
-			sampleDepth = GetLogZ(offset.xy);
+			depth_sample = GetLogZ(offset.xy);
 		}
-
-		if (usePureDepth){
-			
-			float falloff = 0.000001;
-			float area = 0.0075;
-			
-			float difference = z_log - sampleDepth;
-    
-			occlusion += step(falloff, difference) * (1.0-smoothstep(falloff, area, difference));
-
-			//float rangeCheck = smoothstep(0.0, 1.0, ssaoRadius / abs(z_log - sampleDepth));
-			//occlusion += (sampleDepth >= sample.z + bias ? 1.0 : 0.0);// * rangeCheck;
-		}
-		else
+		
+		/////
+		if(useGBufferDepth || useDepthReconstruction)
 		{
-			float rangeCheck = smoothstep(0.0, 1.0, ssaoRadius / abs(fragPos.z - sampleDepth));
-			occlusion += (sampleDepth >= sample.z + bias ? 1.0 : 0.0) * rangeCheck;
+			float rangeCheck = smoothstep(0.0, 1.0, ssaoRadius / abs(fragPos.z - depth_sample));
+			occlusion += (depth_sample >= sample.z + bias ? 1.0 : 0.0) * rangeCheck;
 		}
+
+		else if (usePureDepth){
+			
+			//float falloff = 0.0001; //0.000001
+			//float area = 0.0075;  //0.0075
+			
+			float difference = depth_log - depth_sample;
+    
+			occlusion += step(ssao_DR_falloff, difference) * (1.0-smoothstep(ssao_DR_falloff, ssao_DR_area, difference));			
+		}
+		
     }
     occlusion = 1.0 - (occlusion / kernelSize);
     
     FragColor = occlusion;
-	RePosition = vec3(x_view, y_view, z_view);
+	//RePosition = vec3(x_view, y_view, z_view);
 }

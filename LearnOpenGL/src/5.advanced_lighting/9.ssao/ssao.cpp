@@ -39,9 +39,14 @@ float lastFrame = 0.0f;
 
 //SSAO control
 bool g_useSSAO = true;
-bool g_useLogDepth = false;
+bool g_useDepthReconstruction = false;
 float g_ssaoRadius = 0.5f;
+float g_ssao_DR_fallOff = 0.000001;
+float g_ssao_DR_area = 0.0075;
 bool g_usePureDepth = false;
+bool g_useNormalReconstruction = true;
+bool g_useGBufferDepth = true;
+
 enum SHOWPASS
 {
     REDEPTH = 0,
@@ -348,8 +353,12 @@ int main()
             shaderSSAO.setMat4("projection", projection);
 			shaderSSAO.setMat4("projectionInverse", projectionInverse);
             shaderSSAO.setFloat("ssaoRadius", g_ssaoRadius);
-            shaderSSAO.setBool("useLogDepth", g_useLogDepth);
+			shaderSSAO.setFloat("ssao_DR_falloff", g_ssao_DR_fallOff);
+			shaderSSAO.setFloat("ssao_DR_area", g_ssao_DR_area);
+            shaderSSAO.setBool("useDepthReconstruction", g_useDepthReconstruction);
 			shaderSSAO.setBool("usePureDepth", g_usePureDepth);
+			shaderSSAO.setBool("useNormalReconstruction", g_useNormalReconstruction);
+			shaderSSAO.setBool("useGBufferDepth", g_useGBufferDepth);
             shaderSSAO.setFloat("aspectRatio", aspectRatio);
             shaderSSAO.setFloat("tanHalfFOV", glm::tan(glm::radians(camera.Zoom / 2.f)));
             shaderSSAO.setFloat("near", clip_near);
@@ -563,10 +572,21 @@ void processInput(GLFWwindow *window)
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
         camera.ProcessKeyboard(RIGHT, deltaTime);
 
-    if (glfwGetKey(window, GLFW_KEY_O) == GLFW_PRESS)
+	if (glfwGetKey(window, GLFW_KEY_X) == GLFW_PRESS)
+		g_ssaoRadius = glm::max(g_ssaoRadius - deltaTime, 0.000001f);
+    if (glfwGetKey(window, GLFW_KEY_C) == GLFW_PRESS)
         g_ssaoRadius += deltaTime;
-    if (glfwGetKey(window, GLFW_KEY_L) == GLFW_PRESS)
-        g_ssaoRadius -= deltaTime;
+
+	if (glfwGetKey(window, GLFW_KEY_V) == GLFW_PRESS)
+		g_ssao_DR_fallOff = glm::max(g_ssao_DR_fallOff - deltaTime * 0.005f, 0.000001f);
+	if (glfwGetKey(window, GLFW_KEY_B) == GLFW_PRESS)
+		g_ssao_DR_fallOff = glm::min(g_ssao_DR_fallOff + deltaTime* 0.005f, g_ssao_DR_area);
+
+	if (glfwGetKey(window, GLFW_KEY_N) == GLFW_PRESS)
+		g_ssao_DR_area = glm::max(g_ssao_DR_area - deltaTime*0.1f, g_ssao_DR_fallOff);
+	if (glfwGetKey(window, GLFW_KEY_M) == GLFW_PRESS)
+		g_ssao_DR_area = glm::min(g_ssao_DR_area + deltaTime*0.1f, 2.f);
+
     
 }
 
@@ -575,12 +595,40 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
     if (key == GLFW_KEY_T && action == GLFW_RELEASE)
         g_useSSAO = !g_useSSAO;
     
-    if (key == GLFW_KEY_I && action == GLFW_RELEASE)
-        g_useLogDepth = !g_useLogDepth;
+	if (key == GLFW_KEY_R && action == GLFW_RELEASE)
+	{
+		g_useDepthReconstruction = true;
+		g_useGBufferDepth = false;
+		g_usePureDepth = false;
+		std::cout << "DepthMode: Log With Reprojection" << std::endl;
+	}
 	
 	if (key == GLFW_KEY_P && action == GLFW_RELEASE)
-		g_usePureDepth = !g_usePureDepth;
+	{
+		g_useDepthReconstruction = false;
+		g_useGBufferDepth = false;
+		g_usePureDepth = true;
+		g_useNormalReconstruction = true;
+		std::cout << "DepthMode: Log in screen space" << std::endl;
+	}
+
+	if (key == GLFW_KEY_O && action == GLFW_RELEASE)
+	{
+		g_useDepthReconstruction = false;
+		g_useGBufferDepth = false;
+		g_usePureDepth = true;
+		g_useNormalReconstruction = false;
+		std::cout << "DepthMode: Log in screen space with Normal from GBuffer" << std::endl;
+	}
     
+	if (key == GLFW_KEY_G && action == GLFW_RELEASE)
+	{
+		g_useDepthReconstruction = false;
+		g_useGBufferDepth = true;
+		g_usePureDepth = false;
+		std::cout << "DepthMode: Position from G-Buffer" << std::endl;
+	}
+
 	if (key == GLFW_KEY_1 && action == GLFW_RELEASE)
     {
         std::cout << "Pass: Final Color" << std::endl;
