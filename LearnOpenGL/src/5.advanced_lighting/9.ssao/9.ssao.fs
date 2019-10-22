@@ -13,9 +13,10 @@ uniform sampler2D gDepth;
 uniform vec3 samples[64];
 
 // parameters (you'd probably want to use them as uniforms to more easily tweak the effect)
-int kernelSize = 64;
+int kernelSize = 16;
 uniform float ssaoRadius;
 uniform bool useLogDepth;
+uniform bool usePureDepth;
 uniform float near; 
 uniform float far;
 float bias = 0.025;
@@ -30,8 +31,13 @@ float GetViewZ(vec2 coords)
 {
 	float z = texture(gDepth, coords).r;
     z = z * 2.0 - 1.0; // back to NDC 
-    return (2.0 * near * far) / (far + near - z * ( far - near));	
-	//return (projection[3][2] / ( z - projection[2][2]));
+    return (2.0 * near * far) / (far + near - z * ( far - near));		
+}
+
+float GetLogZ(vec2 coords)
+{
+	float z = texture(gDepth, coords).r;    
+    return z;// (2.0 * near * far) / (far + near - z * ( far - near));		
 }
 
 vec3 ReconstructPosition(float z_view)
@@ -54,8 +60,10 @@ void main()
 	float x_view = z_view * ViewRay.x;
 	float y_view = z_view * ViewRay.y;
 
+	float z_log = GetLogZ(TexCoords);
 	//Use Reconstructed Position
-	if(useLogDepth){			
+	if(useLogDepth){
+		
 		fragPos = ReconstructPosition(texture(gDepth, TexCoords).r);		
 	}
 
@@ -84,11 +92,31 @@ void main()
 		if(useLogDepth){	
 			sampleDepth = ReconstructPosition(texture(gDepth, offset.xy).r).z;
 			//sampleDepth = GetViewZ(offset.xy);
+			//sampleDepth = GetLogZ(offset.xy);
 		}
         
-        // range check & accumulate
-        float rangeCheck = smoothstep(0.0, 1.0, ssaoRadius / abs(fragPos.z - sampleDepth));
-        occlusion += (sampleDepth >= sample.z + bias ? 1.0 : 0.0) * rangeCheck;           
+		else if(usePureDepth){	
+
+			sampleDepth = GetLogZ(offset.xy);
+		}
+
+		if (usePureDepth){
+			
+			float falloff = 0.000001;
+			float area = 0.0075;
+			
+			float difference = z_log - sampleDepth;
+    
+			occlusion += step(falloff, difference) * (1.0-smoothstep(falloff, area, difference));
+
+			//float rangeCheck = smoothstep(0.0, 1.0, ssaoRadius / abs(z_log - sampleDepth));
+			//occlusion += (sampleDepth >= sample.z + bias ? 1.0 : 0.0);// * rangeCheck;
+		}
+		else
+		{
+			float rangeCheck = smoothstep(0.0, 1.0, ssaoRadius / abs(fragPos.z - sampleDepth));
+			occlusion += (sampleDepth >= sample.z + bias ? 1.0 : 0.0) * rangeCheck;
+		}
     }
     occlusion = 1.0 - (occlusion / kernelSize);
     

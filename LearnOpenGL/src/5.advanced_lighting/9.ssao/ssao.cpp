@@ -41,6 +41,7 @@ float lastFrame = 0.0f;
 bool g_useSSAO = true;
 bool g_useLogDepth = false;
 float g_ssaoRadius = 0.5f;
+bool g_usePureDepth = false;
 enum SHOWPASS
 {
     REDEPTH = 0,
@@ -51,7 +52,7 @@ enum SHOWPASS
     REPOSITION = 4,
     POSITION = 5
 };
-uint32_t g_showPass = SHOWPASS::FINALCOLOR;
+uint32_t g_showPass = SHOWPASS::SSAO;
 
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
 
@@ -348,6 +349,7 @@ int main()
 			shaderSSAO.setMat4("projectionInverse", projectionInverse);
             shaderSSAO.setFloat("ssaoRadius", g_ssaoRadius);
             shaderSSAO.setBool("useLogDepth", g_useLogDepth);
+			shaderSSAO.setBool("usePureDepth", g_usePureDepth);
             shaderSSAO.setFloat("aspectRatio", aspectRatio);
             shaderSSAO.setFloat("tanHalfFOV", glm::tan(glm::radians(camera.Zoom / 2.f)));
             shaderSSAO.setFloat("near", clip_near);
@@ -405,6 +407,7 @@ int main()
         //5. Final rendering for the selected Render pass
         //-------------------------------------------------------------------------------------------------------
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		glm::mat4 unity = glm::mat4(1.f);
         shaderFinalRender.use();
         shaderFinalRender.setInt("showPass",int(g_showPass));
         shaderFinalRender.setFloat("near", clip_near);
@@ -574,8 +577,11 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
     
     if (key == GLFW_KEY_I && action == GLFW_RELEASE)
         g_useLogDepth = !g_useLogDepth;
-
-    if (key == GLFW_KEY_1 && action == GLFW_RELEASE)
+	
+	if (key == GLFW_KEY_P && action == GLFW_RELEASE)
+		g_usePureDepth = !g_usePureDepth;
+    
+	if (key == GLFW_KEY_1 && action == GLFW_RELEASE)
     {
         std::cout << "Pass: Final Color" << std::endl;
         g_showPass = SHOWPASS::FINALCOLOR;
