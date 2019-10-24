@@ -24,8 +24,8 @@ void renderCube();
 // settings
 const unsigned int SCR_WIDTH = 1280;
 const unsigned int SCR_HEIGHT = 720;
-const float clip_near = 0.1f;
-const float clip_far = 50.f;
+const float clip_near = 1.f;
+const float clip_far = 20.f;
 
 // camera
 Camera camera(glm::vec3(2.0f, 3.0f, 5.0f));
@@ -40,11 +40,13 @@ float lastFrame = 0.0f;
 //SSAO control
 bool g_useSSAO = true;
 bool g_useDepthReconstruction = false;
-float g_ssaoRadius = 0.5f;
-float g_ssao_DR_fallOff = 0.000001;
-float g_ssao_DR_area = 0.0075;
+float g_ssaoRadius = 0.132;
+float g_ssao_DR_fallOff = 0.00117474;
+float g_ssao_DR_area = 0.2065;
 bool g_usePureDepth = false;
 bool g_useNormalReconstruction = true;
+bool g_useRadiusScaling = true;
+bool g_fallOffMulti = true;
 bool g_useGBufferDepth = true;
 
 enum SHOWPASS
@@ -293,6 +295,27 @@ int main()
     shaderFinalRender.setInt("gDepth", 3);
     shaderFinalRender.setInt("rePosition", 4);
     shaderFinalRender.setInt("gPosition", 5);
+
+	cout << "Input Options\n " <<
+		"G: SSAO from G Buffer position (Linear Depth)\n " <<
+		"R: SSAO from Depth Reprojection using Logrithmic Depth\n " <<
+		"P: SSAO from Depth in Screen Space and Normal reconsruction (No Reporjection, Cheapest)\n " <<
+		"O: Enable G Buffer Normal in combination with Screen Space Depth (P)\n " <<
+		"I: Enable Radius scaling according to Depth in combination with Screen Space Depth (P)\n " <<
+		"X-C: Decrease / Increase SSAO Radius\n " <<
+		"V-B: Decrease / Increase Fall off  for Screen Space Depth (P)\n " <<
+		"N-M: Decrease / Increase Area  for Screen Space Depth (P)\n\n " <<
+		"1: Final Result\n " <<
+		"2: SSAO\n " <<
+		"3: SSAO with Blur\n " <<
+		"4: Position from Reconstruction\n " <<
+		"5: Position from GBuffer\n " <<
+		"9: Depth from GBuffer\n " <<
+		"0: Depth from Reconstruction\n";
+
+
+		
+
     // render loop
     // -----------
     while (!glfwWindowShouldClose(window))
@@ -349,7 +372,7 @@ int main()
             shaderSSAO.use();
             // Send kernel + rotation 
             for (unsigned int i = 0; i < 64; ++i)
-                shaderSSAO.setVec3("samples[" + std::to_string(i) + "]", ssaoKernel[i]);
+            shaderSSAO.setVec3("samples[" + std::to_string(i) + "]", ssaoKernel[i]);
             shaderSSAO.setMat4("projection", projection);
 			shaderSSAO.setMat4("projectionInverse", projectionInverse);
             shaderSSAO.setFloat("ssaoRadius", g_ssaoRadius);
@@ -358,6 +381,8 @@ int main()
             shaderSSAO.setBool("useDepthReconstruction", g_useDepthReconstruction);
 			shaderSSAO.setBool("usePureDepth", g_usePureDepth);
 			shaderSSAO.setBool("useNormalReconstruction", g_useNormalReconstruction);
+			shaderSSAO.setBool("useRadiusScaling", g_useRadiusScaling);
+			shaderSSAO.setBool("fallOffMulti", g_fallOffMulti);
 			shaderSSAO.setBool("useGBufferDepth", g_useGBufferDepth);
             shaderSSAO.setFloat("aspectRatio", aspectRatio);
             shaderSSAO.setFloat("tanHalfFOV", glm::tan(glm::radians(camera.Zoom / 2.f)));
@@ -572,20 +597,28 @@ void processInput(GLFWwindow *window)
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
         camera.ProcessKeyboard(RIGHT, deltaTime);
 
-	if (glfwGetKey(window, GLFW_KEY_X) == GLFW_PRESS)
+	if (glfwGetKey(window, GLFW_KEY_X) == GLFW_PRESS) {
 		g_ssaoRadius = glm::max(g_ssaoRadius - deltaTime, 0.000001f);
-    if (glfwGetKey(window, GLFW_KEY_C) == GLFW_PRESS)
-        g_ssaoRadius += deltaTime;
+		
+	}
+	if (glfwGetKey(window, GLFW_KEY_C) == GLFW_PRESS) {
+		g_ssaoRadius += deltaTime;
+		
+	}
 
-	if (glfwGetKey(window, GLFW_KEY_V) == GLFW_PRESS)
-		g_ssao_DR_fallOff = glm::max(g_ssao_DR_fallOff - deltaTime * 0.005f, 0.000001f);
-	if (glfwGetKey(window, GLFW_KEY_B) == GLFW_PRESS)
-		g_ssao_DR_fallOff = glm::min(g_ssao_DR_fallOff + deltaTime* 0.005f, g_ssao_DR_area);
+	if (glfwGetKey(window, GLFW_KEY_V) == GLFW_PRESS) {
+		g_ssao_DR_fallOff = glm::max(g_ssao_DR_fallOff - deltaTime * 0.0025f, 0.f);
+		
+	}
+	if (glfwGetKey(window, GLFW_KEY_B) == GLFW_PRESS) {
+		g_ssao_DR_fallOff = glm::min(g_ssao_DR_fallOff + deltaTime * 0.0025f, g_ssao_DR_area);
+		
+	}
 
 	if (glfwGetKey(window, GLFW_KEY_N) == GLFW_PRESS)
-		g_ssao_DR_area = glm::max(g_ssao_DR_area - deltaTime*0.1f, g_ssao_DR_fallOff);
+		g_ssao_DR_area = glm::max(g_ssao_DR_area - deltaTime*0.01f, g_ssao_DR_fallOff);
 	if (glfwGetKey(window, GLFW_KEY_M) == GLFW_PRESS)
-		g_ssao_DR_area = glm::min(g_ssao_DR_area + deltaTime*0.1f, 2.f);
+		g_ssao_DR_area = glm::min(g_ssao_DR_area + deltaTime*0.01f, 10.f);
 
     
 }
@@ -600,25 +633,45 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 		g_useDepthReconstruction = true;
 		g_useGBufferDepth = false;
 		g_usePureDepth = false;
-		std::cout << "DepthMode: Log With Reprojection" << std::endl;
+		std::cout << "DepthMode: Log Depth With Reprojection" << std::endl;
 	}
 	
 	if (key == GLFW_KEY_P && action == GLFW_RELEASE)
 	{
 		g_useDepthReconstruction = false;
 		g_useGBufferDepth = false;
-		g_usePureDepth = true;
-		g_useNormalReconstruction = true;
-		std::cout << "DepthMode: Log in screen space" << std::endl;
+		g_usePureDepth = true;		
+		std::cout << "DepthMode: Log Depth in screen space" << std::endl;
 	}
 
 	if (key == GLFW_KEY_O && action == GLFW_RELEASE)
+	{		
+		g_useNormalReconstruction = !g_useNormalReconstruction;
+		if(g_useNormalReconstruction)
+			std::cout << "DepthMode: Normal reconstruction enabled" << std::endl;
+		else
+			std::cout << "DepthMode: Normal reconstruction disabled" << std::endl;
+	}
+
+	if (key == GLFW_KEY_I && action == GLFW_RELEASE)
 	{
-		g_useDepthReconstruction = false;
-		g_useGBufferDepth = false;
-		g_usePureDepth = true;
-		g_useNormalReconstruction = false;
-		std::cout << "DepthMode: Log in screen space with Normal from GBuffer" << std::endl;
+		g_useRadiusScaling = !g_useRadiusScaling;
+		if (g_useRadiusScaling)
+		{
+			std::cout << "DepthMode: Radius Scaling enabled" << std::endl;
+		}
+		else
+		{
+			std::cout << "DepthMode: Radius Scaling disabled" << std::endl;
+		}
+	}
+	if (key == GLFW_KEY_U && action == GLFW_RELEASE)
+	{
+		g_fallOffMulti = !g_fallOffMulti;
+		if(g_fallOffMulti)
+			std::cout << "DepthMode: Depth is multiplied" << std::endl;
+		else
+			std::cout << "DepthMode: Depth is Divided" << std::endl;
 	}
     
 	if (key == GLFW_KEY_G && action == GLFW_RELEASE)
@@ -664,6 +717,21 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
         std::cout << "Pass: Depth" << std::endl;
         g_showPass = SHOWPASS::DEPTH;
     }
+
+
+	//Input Values
+	if ((key == GLFW_KEY_X && action == GLFW_RELEASE) || (key = GLFW_KEY_C && action == GLFW_RELEASE))
+	{
+		cout << "SSAO Property: Radius = " << g_ssaoRadius << endl;
+	}
+	if ((key == GLFW_KEY_V && action == GLFW_RELEASE) || (key = GLFW_KEY_B && action == GLFW_RELEASE))
+	{
+		cout << "SSAO Property: DR_FallOff = " << g_ssao_DR_fallOff << endl;
+	}
+	if ((key == GLFW_KEY_X && action == GLFW_RELEASE) || (key = GLFW_KEY_C && action == GLFW_RELEASE))
+	{
+		cout << "SSAO Property: DR_Area = " << g_ssao_DR_area << endl;
+	}
 }
 
 // glfw: whenever the window size changed (by OS or user resize) this callback function executes

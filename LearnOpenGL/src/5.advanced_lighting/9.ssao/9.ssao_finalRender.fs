@@ -21,7 +21,7 @@ uniform mat4 projectionInverse;
 float GetViewZ(vec2 coords)
 {
 	float z = texture(gDepth, coords).r;
-    return (projection[3][2] / (2.f * z - 1.f - projection[2][2]));
+    //return (projection[3][2] / (2.f * z - 1.f - projection[2][2]));
 
 	z = z * 2.0 - 1.0; // back to NDC 
 	return (2.0 * near * far) / (far + near - z * (far - near));
