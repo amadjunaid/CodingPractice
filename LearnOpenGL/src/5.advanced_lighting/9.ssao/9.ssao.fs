@@ -101,6 +101,7 @@ void main()
 	
 		
 		if (useRadiusScaling){
+			//ssaoRadius_Depth = (((ssaoRadius * projection[2][2] + projection[2][3])/ssaoRadius) + 1f) * 0.5f;
 			ssaoRadius_Depth = fallOffMulti ? ssaoRadius * depth_log : ssaoRadius / depth_log;
 			//ssaoRadius_Depth = ssaoRadius;	
 		}
@@ -138,8 +139,7 @@ void main()
 			float rangeCheck = smoothstep(0.0, 1.0, ssaoRadius_Depth / abs(fragPos.z - depth_sample));
 			occlusion += (depth_sample >= sample.z + bias ? 1.0 : 0.0) * rangeCheck;
 		}
-		else if(usePureDepth){
-			//ssaoRadius_Depth -= 0.4f;
+		else if(usePureDepth){			
 			vec3 ray = ssaoRadius_Depth * reflect(samples[i], randomVec);
 			vec3 offset = fragPos + sign(dot(ray,normal)) * ray;
 			float depth_sample = GetLogZ(offset.xy);		

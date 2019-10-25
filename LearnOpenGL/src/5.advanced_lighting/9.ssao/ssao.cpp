@@ -24,7 +24,7 @@ void renderCube();
 // settings
 const unsigned int SCR_WIDTH = 1280;
 const unsigned int SCR_HEIGHT = 720;
-const float clip_near = 1.f;
+const float clip_near = 0.5f;
 const float clip_far = 20.f;
 
 // camera
@@ -40,13 +40,13 @@ float lastFrame = 0.0f;
 //SSAO control
 bool g_useSSAO = true;
 bool g_useDepthReconstruction = false;
-float g_ssaoRadius = 0.132;
-float g_ssao_DR_fallOff = 0.00117474;
-float g_ssao_DR_area = 0.2065;
+float g_ssaoRadius = 0.081723;
+float g_ssao_DR_fallOff = 0.000424065;
+float g_ssao_DR_area = 0.35;
 bool g_usePureDepth = false;
 bool g_useNormalReconstruction = true;
 bool g_useRadiusScaling = true;
-bool g_fallOffMulti = true;
+bool g_fallOffMulti = false;
 bool g_useGBufferDepth = true;
 
 enum SHOWPASS
@@ -158,8 +158,10 @@ int main()
     glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, SCR_WIDTH, SCR_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	float borderColor[] = {0.25f, 0.25f, 0.25f};
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_MIRRORED_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_MIRRORED_REPEAT);
+	glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, borderColor);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, gDepth, 0);
     // tell OpenGL which color attachments we'll use (of this framebuffer) for rendering 
     unsigned int attachments[3] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2 };
@@ -616,9 +618,9 @@ void processInput(GLFWwindow *window)
 	}
 
 	if (glfwGetKey(window, GLFW_KEY_N) == GLFW_PRESS)
-		g_ssao_DR_area = glm::max(g_ssao_DR_area - deltaTime*0.01f, g_ssao_DR_fallOff);
+		g_ssao_DR_area = glm::max(g_ssao_DR_area - deltaTime*0.1f, g_ssao_DR_fallOff);
 	if (glfwGetKey(window, GLFW_KEY_M) == GLFW_PRESS)
-		g_ssao_DR_area = glm::min(g_ssao_DR_area + deltaTime*0.01f, 10.f);
+		g_ssao_DR_area = glm::min(g_ssao_DR_area + deltaTime*0.1f, 10.f);
 
     
 }
